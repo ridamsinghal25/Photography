@@ -3,3 +3,5 @@ node_modules
 testing.sql
 bun.lock
 .DS_Store
+.claude
+.cursor
