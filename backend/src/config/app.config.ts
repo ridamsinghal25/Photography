@@ -17,6 +17,7 @@ const appConfig = () => ({
   CLERK_WEBHOOK_SECRET: getEnv("CLERK_WEBHOOK_SECRET"),
   CLERK_PUBLISHABLE_KEY: getEnv("CLERK_PUBLISHABLE_KEY"),
   CLERK_SECRET_KEY: getEnv("CLERK_SECRET_KEY"),
+  APPLICATION_PORT: getEnv("APPLICATION_PORT", "4000"),
 });
 
 export const config = appConfig();

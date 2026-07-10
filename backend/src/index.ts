@@ -13,7 +13,7 @@ import cookieParser from "cookie-parser";
 loadEnv({ path: ".env", override: true });
 
 const app = express();
-const port = 3005;
+const port = config.APPLICATION_PORT;
 
 app.use(cors({
   origin: [config.FRONTEND_ORIGIN],

@@ -11,12 +11,12 @@ import { verifyToken } from "../middlewares/auth.middlewares";
 
 const router = Router();
 
-router.get("/", getPhotosByUserId);
+router.get("/:userId", getPhotosByUserId);
+router.get("/photo/:id", getPhotoById);
 
 router.use(verifyToken);
 
 router.post("/", createPhoto);
-router.get("/:id", getPhotoById);
 router.patch("/:id/metadata", updatePhotoMetadata);
 router.patch("/:id/media", updatePhotoMedia);
 router.delete("/:id", deletePhoto);

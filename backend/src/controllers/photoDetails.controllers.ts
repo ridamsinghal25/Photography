@@ -4,10 +4,11 @@ import { asyncHandler } from "../lib/asyncHandler";
 import { ApiResponse } from "../lib/ApiResponse";
 import { ApiError } from "../lib/ApiError";
 import photoDetailsService from "../services/photoDetails.services";
-import photoTagsService from "../services/photoTags.services";
-import photoCategoriesService from "../services/photoCategories.services";
+// import photoTagsService from "../services/photoTags.services";
+// import photoCategoriesService from "../services/photoCategories.services";
 import blobService from "../services/blob.services";
 import { BlobFolder } from "../enums/enum";
+import appUsersServices from "../services/appUsers.services";
 
 function blobPath(userId: string, folder: BlobFolder, storedFileName: string) {
   return `${userId}/${folder}/${storedFileName}`;
@@ -26,29 +27,30 @@ const createPhoto = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const {
     storedFileName, originalFileName, originalUrl, mimeType, fileSize,
-    categoryId, tags,
+    // categoryId, tags,
     ...metadata
   } = req.body;
 
-  const [categoryExists, photoCount, foundTagIds] = await Promise.all([
-    photoCategoriesService.getCategoryById(categoryId),
-    photoDetailsService.getPhotoCountByUserId(userId),
-    tags?.length ? photoTagsService.getExistingTagIds(tags) : Promise.resolve([]),
-  ]);
+  const photoCount = await photoDetailsService.getPhotoCountByUserId(userId);
 
-  if (!categoryExists) {
-    throw new ApiError(404, "Category does not exist");
-  }
+  // const [categoryExists, photoCount, foundTagIds] = await Promise.all([
+  //   photoCategoriesService.getCategoryById(categoryId),
+  //   photoDetailsService.getPhotoCountByUserId(userId),
+  //   tags?.length ? photoTagsService.getExistingTagIds(tags) : Promise.resolve([]),
+  // ]);
 
+  // if (!categoryExists) {
+  //   throw new ApiError(404, "Category does not exist");
+  // }
 
-  /** Uncomment if you want all tags to be validated */
+  // /** Uncomment if you want all tags to be validated */
   // if (tags?.length && foundTagIds.length !== tags.length) {
   //   throw new ApiError(404, "One or more tags do not exist");
   // }
 
   const photo = await photoDetailsService.createPhoto({
     userId,
-    categoryId,
+    // categoryId,
     userPhotoNumber: photoCount + 1,
     originalFileName,
     storedFileName,
@@ -69,10 +71,12 @@ const createPhoto = asyncHandler(async (req: Request, res: Response) => {
     mimeType
   );
 
-  await Promise.all([
-    photoDetailsService.updatePhotoImageData(photo.id, { compressedUrl }),
-    tags?.length ? photoTagsService.replacePhotoTags(photo.id, tags) : Promise.resolve(),
-  ]);
+  await photoDetailsService.updatePhotoImageData(photo.id, { compressedUrl });
+
+  // await Promise.all([
+  //   photoDetailsService.updatePhotoImageData(photo.id, { compressedUrl }),
+  //   tags?.length ? photoTagsService.replacePhotoTags(photo.id, tags) : Promise.resolve(),
+  // ]);
 
   return res
     .status(201)
@@ -83,7 +87,10 @@ const createPhoto = asyncHandler(async (req: Request, res: Response) => {
 
 const updatePhotoMetadata = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { categoryId, tags, ...metadata } = req.body;
+  const {
+    // categoryId, tags,
+    ...metadata
+  } = req.body;
 
   const existing = await photoDetailsService.getPhotoById(id);
 
@@ -91,30 +98,34 @@ const updatePhotoMetadata = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError(404, "Photo not found");
   }
 
-  if (categoryId) {
-    const categoryExists = await photoCategoriesService.getCategoryById(categoryId);
+  // if (categoryId) {
+  //   const categoryExists = await photoCategoriesService.getCategoryById(categoryId);
+  //
+  //   if (!categoryExists) {
+  //     throw new ApiError(404, "Category does not exist");
+  //   }
+  //
+  //   metadata.categoryId = categoryId;
+  // }
 
-    if (!categoryExists) {
-      throw new ApiError(404, "Category does not exist");
-    }
-    
-    metadata.categoryId = categoryId;
+  // let foundTagIds: string[] = [];
+  // if (tags?.length) {
+  //   foundTagIds = await photoTagsService.getExistingTagIds(tags);
+  //
+  //   /** Uncomment if you want all tags to be validated */
+  //   // if (foundTagIds.length !== tags.length) {
+  //   //   throw new ApiError(404, "One or more tags do not exist");
+  //   // }
+  // }
+
+  if (Object.keys(metadata).length) {
+    await photoDetailsService.updatePhotoMetadata(id, metadata);
   }
 
-  let foundTagIds: string[] = [];
-  if (tags?.length) {
-    foundTagIds = await photoTagsService.getExistingTagIds(tags);
-
-    /** Uncomment if you want all tags to be validated */
-    // if (foundTagIds.length !== tags.length) {
-    //   throw new ApiError(404, "One or more tags do not exist");
-    // }
-  }
-
-  await Promise.all([
-    Object.keys(metadata).length ? photoDetailsService.updatePhotoMetadata(id, metadata) : Promise.resolve(),
-    tags !== undefined ? photoTagsService.replacePhotoTags(id, foundTagIds) : Promise.resolve(),
-  ]);
+  // await Promise.all([
+  //   Object.keys(metadata).length ? photoDetailsService.updatePhotoMetadata(id, metadata) : Promise.resolve(),
+  //   tags !== undefined ? photoTagsService.replacePhotoTags(id, foundTagIds) : Promise.resolve(),
+  // ]);
 
   const updated = await photoDetailsService.getPhotoById(id);
 
@@ -188,8 +199,19 @@ const getPhotoById = asyncHandler(async (req: Request, res: Response) => {
 const getPhotosByUserId = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const userId = req.params.userId;
 
-  const { photos, total } = await photoDetailsService.getPhotosByUserId(req.user!.id, page, limit);
+  if (!userId) {
+    throw new ApiError(400, "User ID is required");
+  }
+
+  const user = await appUsersServices.getUserById(userId);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const { photos, total } = await photoDetailsService.getPhotosByUserId(userId, page, limit);
 
   return res.status(200).json(new ApiResponse(200, {
     photos,

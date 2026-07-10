@@ -1,8 +1,10 @@
 import sql from "mssql";
 
+const emptyToNull = (v?: string | null) => (v?.trim() ? v.trim() : null);
+
 type PhotoInput = {
   userId: string;
-  categoryId: string;
+  // categoryId: string;
   userPhotoNumber: number;
   subjectName?: string;
   subjectInsta?: string;
@@ -25,7 +27,7 @@ type PhotoInput = {
 };
 
 type MetadataUpdate = {
-  categoryId?: string;
+  // categoryId?: string;
   subjectName?: string;
   subjectInsta?: string;
   cameraBody?: string;
@@ -60,20 +62,20 @@ class PhotoDetailsService {
   async createPhoto(data: PhotoInput) {
     const result = await new sql.Request()
       .input("userId", sql.UniqueIdentifier, data.userId)
-      .input("categoryId", sql.UniqueIdentifier, data.categoryId)
+      // .input("categoryId", sql.UniqueIdentifier, data.categoryId)
       .input("userPhotoNumber", sql.Int, data.userPhotoNumber)
-      .input("subjectName", sql.NVarChar(255), data.subjectName ?? null)
-      .input("subjectInsta", sql.NVarChar(255), data.subjectInsta ?? null)
-      .input("cameraBody", sql.NVarChar(255), data.cameraBody ?? null)
-      .input("lens", sql.NVarChar(255), data.lens ?? null)
-      .input("place", sql.NVarChar(255), data.place ?? null)
-      .input("city", sql.NVarChar(255), data.city ?? null)
-      .input("capturedDate", sql.Date, data.capturedDate ?? null)
-      .input("capturedTime", sql.Time, data.capturedTime ?? null)
-      .input("caption", sql.NVarChar(sql.MAX), data.caption ?? null)
-      .input("aperture", sql.NVarChar(30), data.aperture ?? null)
-      .input("iso", sql.NVarChar(30), data.iso ?? null)
-      .input("shutterSpeed", sql.NVarChar(30), data.shutterSpeed ?? null)
+      .input("subjectName", sql.NVarChar(255), emptyToNull(data.subjectName))
+      .input("subjectInsta", sql.NVarChar(255), emptyToNull(data.subjectInsta))
+      .input("cameraBody", sql.NVarChar(255), emptyToNull(data.cameraBody))
+      .input("lens", sql.NVarChar(255), emptyToNull(data.lens))
+      .input("place", sql.NVarChar(255), emptyToNull(data.place))
+      .input("city", sql.NVarChar(255), emptyToNull(data.city))
+      .input("capturedDate", sql.Date, emptyToNull(data.capturedDate))
+      .input("capturedTime", sql.Time, emptyToNull(data.capturedTime))
+      .input("caption", sql.NVarChar(sql.MAX), emptyToNull(data.caption))
+      .input("aperture", sql.NVarChar(30), emptyToNull(data.aperture))
+      .input("iso", sql.NVarChar(30), emptyToNull(data.iso))
+      .input("shutterSpeed", sql.NVarChar(30), emptyToNull(data.shutterSpeed))
       .input("originalFileName", sql.NVarChar(255), data.originalFileName)
       .input("storedFileName", sql.NVarChar(255), data.storedFileName)
       .input("originalUrl", sql.NVarChar(1000), data.originalUrl)
@@ -82,18 +84,19 @@ class PhotoDetailsService {
       .input("mimeType", sql.NVarChar(100), data.mimeType ?? null)
       .query(`
         INSERT INTO PhotoDetails (
-          userId, categoryId, userPhotoNumber,
+          userId, userPhotoNumber,
           subjectName, subjectInsta, cameraBody, lens, place, city,
           capturedDate, capturedTime, caption, aperture, iso, shutterSpeed,
           originalFileName, storedFileName, originalUrl, compressedUrl, fileSize, mimeType
         )
         OUTPUT INSERTED.*
         VALUES (
-          @userId, @categoryId, @userPhotoNumber,
+          @userId, @userPhotoNumber,
           @subjectName, @subjectInsta, @cameraBody, @lens, @place, @city,
           @capturedDate, @capturedTime, @caption, @aperture, @iso, @shutterSpeed,
           @originalFileName, @storedFileName, @originalUrl, @compressedUrl, @fileSize, @mimeType
         )
+        -- categoryId: add back to column list and VALUES when re-enabled
       `);
     return result.recordset[0];
   }
@@ -124,19 +127,19 @@ class PhotoDetailsService {
 
   async updatePhotoMetadata(id: string, data: MetadataUpdate) {
     return this.runUpdate(id, {
-      categoryId: [sql.UniqueIdentifier, data.categoryId],
-      subjectName: [sql.NVarChar(255), data.subjectName],
-      subjectInsta: [sql.NVarChar(255), data.subjectInsta],
-      cameraBody: [sql.NVarChar(255), data.cameraBody],
-      lens: [sql.NVarChar(255), data.lens],
-      place: [sql.NVarChar(255), data.place],
-      city: [sql.NVarChar(255), data.city],
-      capturedDate: [sql.Date, data.capturedDate],
-      capturedTime: [sql.Time, data.capturedTime],
-      caption: [sql.NVarChar(sql.MAX), data.caption],
-      aperture: [sql.NVarChar(30), data.aperture],
-      iso: [sql.NVarChar(30), data.iso],
-      shutterSpeed: [sql.NVarChar(30), data.shutterSpeed],
+      // categoryId: [sql.UniqueIdentifier, data.categoryId],
+      subjectName: [sql.NVarChar(255), emptyToNull(data.subjectName)],
+      subjectInsta: [sql.NVarChar(255), emptyToNull(data.subjectInsta)],
+      cameraBody: [sql.NVarChar(255), emptyToNull(data.cameraBody)],
+      lens: [sql.NVarChar(255), emptyToNull(data.lens)],
+      place: [sql.NVarChar(255), emptyToNull(data.place)],
+      city: [sql.NVarChar(255), emptyToNull(data.city)],
+      capturedDate: [sql.Date, emptyToNull(data.capturedDate)],
+      capturedTime: [sql.Time, emptyToNull(data.capturedTime)],
+      caption: [sql.NVarChar(sql.MAX), emptyToNull(data.caption)],
+      aperture: [sql.NVarChar(30), emptyToNull(data.aperture)],
+      iso: [sql.NVarChar(30), emptyToNull(data.iso)],
+      shutterSpeed: [sql.NVarChar(30), emptyToNull(data.shutterSpeed)],
     }, data);
   }
 

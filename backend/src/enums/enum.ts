@@ -10,6 +10,7 @@ export enum BlobFolder {
 
 export enum ImageMimeType {
   Jpg = "image/jpg",
+  Jpeg = "image/jpeg",
   Png = "image/png",
   Webp = "image/webp",
   Tiff = "image/tiff",
@@ -22,6 +23,7 @@ export enum ImageMimeType {
 
 export const IMAGE_MIME_TO_EXT: Record<ImageMimeType, string> = {
   [ImageMimeType.Jpg]: ".jpg",
+  [ImageMimeType.Jpeg]: ".jpeg",
   [ImageMimeType.Png]: ".png",
   [ImageMimeType.Webp]: ".webp",
   [ImageMimeType.Tiff]: ".tif",
