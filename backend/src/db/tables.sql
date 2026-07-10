@@ -31,6 +31,38 @@ CREATE TABLE Tags (
 );
 
 
+-- Create Subjects table
+CREATE TABLE Subjects (
+    id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+
+    name NVARCHAR(255) NOT NULL,
+
+    instaHandle NVARCHAR(255),
+    email NVARCHAR(255),
+    phone_number NVARCHAR(50),
+    city NVARCHAR(255),
+    country NVARCHAR(255),
+    portfolio_url NVARCHAR(1000),
+
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+    updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+
+    CONSTRAINT CK_Subjects_InstaHandle
+        CHECK (
+            instaHandle IS NULL
+            OR (
+                instaHandle LIKE '@_%'
+                AND instaHandle NOT LIKE '% %'
+            )
+        ),
+
+    CONSTRAINT CK_Subjects_Email
+        CHECK (
+            email IS NULL
+            OR email LIKE '_%@_%._%'
+        )
+);
+
 -- Create Photos table
 CREATE TABLE PhotoDetails (
     id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),

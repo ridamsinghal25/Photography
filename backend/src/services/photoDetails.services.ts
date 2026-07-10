@@ -1,6 +1,5 @@
 import sql from "mssql";
-
-const emptyToNull = (v?: string | null) => (v?.trim() ? v.trim() : null);
+import { emptyToNull } from "../lib/helper";
 
 type PhotoInput = {
   userId: string;
@@ -81,8 +80,7 @@ class PhotoDetailsService {
       .input("originalUrl", sql.NVarChar(1000), data.originalUrl)
       .input("compressedUrl", sql.NVarChar(1000), data.compressedUrl ?? null)
       .input("fileSize", sql.BigInt, data.fileSize ?? null)
-      .input("mimeType", sql.NVarChar(100), data.mimeType ?? null)
-      .query(`
+      .input("mimeType", sql.NVarChar(100), data.mimeType ?? null).query(`
         INSERT INTO PhotoDetails (
           userId, userPhotoNumber,
           subjectName, subjectInsta, cameraBody, lens, place, city,
@@ -102,9 +100,13 @@ class PhotoDetailsService {
   }
 
   // ponytail: dynamic SET build needed because any subset of fields may be updated
-  private async runUpdate(id: string, fieldMap: Record<string, [any, unknown]>, data: object) {
+  private async runUpdate(
+    id: string,
+    fieldMap: Record<string, [any, unknown]>,
+    data: object,
+  ) {
     const keys = Object.keys(data).filter(
-      (k) => k in fieldMap && (data as any)[k] !== undefined
+      (k) => k in fieldMap && (data as any)[k] !== undefined,
     );
     if (keys.length === 0) return null;
 
@@ -126,32 +128,40 @@ class PhotoDetailsService {
   }
 
   async updatePhotoMetadata(id: string, data: MetadataUpdate) {
-    return this.runUpdate(id, {
-      // categoryId: [sql.UniqueIdentifier, data.categoryId],
-      subjectName: [sql.NVarChar(255), emptyToNull(data.subjectName)],
-      subjectInsta: [sql.NVarChar(255), emptyToNull(data.subjectInsta)],
-      cameraBody: [sql.NVarChar(255), emptyToNull(data.cameraBody)],
-      lens: [sql.NVarChar(255), emptyToNull(data.lens)],
-      place: [sql.NVarChar(255), emptyToNull(data.place)],
-      city: [sql.NVarChar(255), emptyToNull(data.city)],
-      capturedDate: [sql.Date, emptyToNull(data.capturedDate)],
-      capturedTime: [sql.Time, emptyToNull(data.capturedTime)],
-      caption: [sql.NVarChar(sql.MAX), emptyToNull(data.caption)],
-      aperture: [sql.NVarChar(30), emptyToNull(data.aperture)],
-      iso: [sql.NVarChar(30), emptyToNull(data.iso)],
-      shutterSpeed: [sql.NVarChar(30), emptyToNull(data.shutterSpeed)],
-    }, data);
+    return this.runUpdate(
+      id,
+      {
+        // categoryId: [sql.UniqueIdentifier, data.categoryId],
+        subjectName: [sql.NVarChar(255), emptyToNull(data.subjectName)],
+        subjectInsta: [sql.NVarChar(255), emptyToNull(data.subjectInsta)],
+        cameraBody: [sql.NVarChar(255), emptyToNull(data.cameraBody)],
+        lens: [sql.NVarChar(255), emptyToNull(data.lens)],
+        place: [sql.NVarChar(255), emptyToNull(data.place)],
+        city: [sql.NVarChar(255), emptyToNull(data.city)],
+        capturedDate: [sql.Date, emptyToNull(data.capturedDate)],
+        capturedTime: [sql.Time, emptyToNull(data.capturedTime)],
+        caption: [sql.NVarChar(sql.MAX), emptyToNull(data.caption)],
+        aperture: [sql.NVarChar(30), emptyToNull(data.aperture)],
+        iso: [sql.NVarChar(30), emptyToNull(data.iso)],
+        shutterSpeed: [sql.NVarChar(30), emptyToNull(data.shutterSpeed)],
+      },
+      data,
+    );
   }
 
   async updatePhotoImageData(id: string, data: ImageDataUpdate) {
-    return this.runUpdate(id, {
-      originalFileName: [sql.NVarChar(255), data.originalFileName],
-      storedFileName: [sql.NVarChar(255), data.storedFileName],
-      originalUrl: [sql.NVarChar(1000), data.originalUrl],
-      compressedUrl: [sql.NVarChar(1000), data.compressedUrl],
-      fileSize: [sql.BigInt, data.fileSize],
-      mimeType: [sql.NVarChar(100), data.mimeType],
-    }, data);
+    return this.runUpdate(
+      id,
+      {
+        originalFileName: [sql.NVarChar(255), data.originalFileName],
+        storedFileName: [sql.NVarChar(255), data.storedFileName],
+        originalUrl: [sql.NVarChar(1000), data.originalUrl],
+        compressedUrl: [sql.NVarChar(1000), data.compressedUrl],
+        fileSize: [sql.BigInt, data.fileSize],
+        mimeType: [sql.NVarChar(100), data.mimeType],
+      },
+      data,
+    );
   }
 
   async deletePhoto(id: string) {
@@ -164,7 +174,9 @@ class PhotoDetailsService {
   async getPhotoCountByUserId(userId: string): Promise<number> {
     const result = await new sql.Request()
       .input("userId", sql.UniqueIdentifier, userId)
-      .query("SELECT COUNT(*) AS total FROM PhotoDetails WHERE userId = @userId");
+      .query(
+        "SELECT COUNT(*) AS total FROM PhotoDetails WHERE userId = @userId",
+      );
     return result.recordset[0].total;
   }
 
@@ -172,8 +184,7 @@ class PhotoDetailsService {
     const result = await new sql.Request()
       .input("userId", sql.UniqueIdentifier, userId)
       .input("offset", sql.Int, (page - 1) * limit)
-      .input("limit", sql.Int, limit)
-      .query(`
+      .input("limit", sql.Int, limit).query(`
         SELECT id, compressedUrl, userPhotoNumber, COUNT(*) OVER() AS total
         FROM PhotoDetails WHERE userId = @userId
         ORDER BY userPhotoNumber
