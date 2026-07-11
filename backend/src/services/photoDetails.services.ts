@@ -4,9 +4,8 @@ import { emptyToNull } from "../lib/helper";
 type PhotoInput = {
   userId: string;
   // categoryId: string;
-  userPhotoNumber: number;
-  subjectName?: string;
-  subjectInsta?: string;
+  slug: string;
+  subjectId?: string;
   cameraBody?: string;
   lens?: string;
   place?: string;
@@ -17,7 +16,6 @@ type PhotoInput = {
   aperture?: string;
   iso?: string;
   shutterSpeed?: string;
-  originalFileName: string;
   storedFileName: string;
   originalUrl: string;
   compressedUrl?: string;
@@ -27,8 +25,8 @@ type PhotoInput = {
 
 type MetadataUpdate = {
   // categoryId?: string;
-  subjectName?: string;
-  subjectInsta?: string;
+  slug?: string;
+  subjectId?: string;
   cameraBody?: string;
   lens?: string;
   place?: string;
@@ -42,7 +40,6 @@ type MetadataUpdate = {
 };
 
 type ImageDataUpdate = {
-  originalFileName?: string;
   storedFileName?: string;
   originalUrl?: string;
   compressedUrl?: string;
@@ -58,13 +55,21 @@ class PhotoDetailsService {
     return result.recordset[0] ?? null;
   }
 
+  async isSlugUnique(userId: string, slug: string, excludeId?: string): Promise<boolean> {
+    const result = await new sql.Request()
+      .input("userId", sql.UniqueIdentifier, userId)
+      .input("slug", sql.NVarChar(255), slug)
+      .input("excludeId", sql.UniqueIdentifier, excludeId ?? null)
+      .query("SELECT 1 AS found FROM PhotoDetails WHERE userId = @userId AND slug = @slug AND (@excludeId IS NULL OR id != @excludeId)");
+    return result.recordset.length === 0;
+  }
+
   async createPhoto(data: PhotoInput) {
     const result = await new sql.Request()
       .input("userId", sql.UniqueIdentifier, data.userId)
       // .input("categoryId", sql.UniqueIdentifier, data.categoryId)
-      .input("userPhotoNumber", sql.Int, data.userPhotoNumber)
-      .input("subjectName", sql.NVarChar(255), emptyToNull(data.subjectName))
-      .input("subjectInsta", sql.NVarChar(255), emptyToNull(data.subjectInsta))
+      .input("slug", sql.NVarChar(255), data.slug)
+      .input("subjectId", sql.UniqueIdentifier, data.subjectId ?? null)
       .input("cameraBody", sql.NVarChar(255), emptyToNull(data.cameraBody))
       .input("lens", sql.NVarChar(255), emptyToNull(data.lens))
       .input("place", sql.NVarChar(255), emptyToNull(data.place))
@@ -75,24 +80,23 @@ class PhotoDetailsService {
       .input("aperture", sql.NVarChar(30), emptyToNull(data.aperture))
       .input("iso", sql.NVarChar(30), emptyToNull(data.iso))
       .input("shutterSpeed", sql.NVarChar(30), emptyToNull(data.shutterSpeed))
-      .input("originalFileName", sql.NVarChar(255), data.originalFileName)
       .input("storedFileName", sql.NVarChar(255), data.storedFileName)
       .input("originalUrl", sql.NVarChar(1000), data.originalUrl)
       .input("compressedUrl", sql.NVarChar(1000), data.compressedUrl ?? null)
       .input("fileSize", sql.BigInt, data.fileSize ?? null)
       .input("mimeType", sql.NVarChar(100), data.mimeType ?? null).query(`
         INSERT INTO PhotoDetails (
-          userId, userPhotoNumber,
-          subjectName, subjectInsta, cameraBody, lens, place, city,
+          userId, slug, subjectId,
+          cameraBody, lens, place, city,
           capturedDate, capturedTime, caption, aperture, iso, shutterSpeed,
-          originalFileName, storedFileName, originalUrl, compressedUrl, fileSize, mimeType
+          storedFileName, originalUrl, compressedUrl, fileSize, mimeType
         )
         OUTPUT INSERTED.*
         VALUES (
-          @userId, @userPhotoNumber,
-          @subjectName, @subjectInsta, @cameraBody, @lens, @place, @city,
+          @userId, @slug, @subjectId,
+          @cameraBody, @lens, @place, @city,
           @capturedDate, @capturedTime, @caption, @aperture, @iso, @shutterSpeed,
-          @originalFileName, @storedFileName, @originalUrl, @compressedUrl, @fileSize, @mimeType
+          @storedFileName, @originalUrl, @compressedUrl, @fileSize, @mimeType
         )
         -- categoryId: add back to column list and VALUES when re-enabled
       `);
@@ -132,8 +136,8 @@ class PhotoDetailsService {
       id,
       {
         // categoryId: [sql.UniqueIdentifier, data.categoryId],
-        subjectName: [sql.NVarChar(255), emptyToNull(data.subjectName)],
-        subjectInsta: [sql.NVarChar(255), emptyToNull(data.subjectInsta)],
+        slug: [sql.NVarChar(255), data.slug],
+        subjectId: [sql.UniqueIdentifier, data.subjectId ?? null],
         cameraBody: [sql.NVarChar(255), emptyToNull(data.cameraBody)],
         lens: [sql.NVarChar(255), emptyToNull(data.lens)],
         place: [sql.NVarChar(255), emptyToNull(data.place)],
@@ -153,7 +157,6 @@ class PhotoDetailsService {
     return this.runUpdate(
       id,
       {
-        originalFileName: [sql.NVarChar(255), data.originalFileName],
         storedFileName: [sql.NVarChar(255), data.storedFileName],
         originalUrl: [sql.NVarChar(1000), data.originalUrl],
         compressedUrl: [sql.NVarChar(1000), data.compressedUrl],
@@ -171,23 +174,13 @@ class PhotoDetailsService {
     return result.recordset[0] ?? null;
   }
 
-  async getPhotoCountByUserId(userId: string): Promise<number> {
-    const result = await new sql.Request()
-      .input("userId", sql.UniqueIdentifier, userId)
-      .query(
-        "SELECT COUNT(*) AS total FROM PhotoDetails WHERE userId = @userId",
-      );
-    return result.recordset[0].total;
-  }
-
   async getPhotosByUserId(userId: string, page: number, limit: number) {
     const result = await new sql.Request()
       .input("userId", sql.UniqueIdentifier, userId)
       .input("offset", sql.Int, (page - 1) * limit)
       .input("limit", sql.Int, limit).query(`
-        SELECT id, compressedUrl, userPhotoNumber, COUNT(*) OVER() AS total
+        SELECT id, compressedUrl, slug, COUNT(*) OVER() AS total
         FROM PhotoDetails WHERE userId = @userId
-        ORDER BY userPhotoNumber
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
     const total = result.recordset[0]?.total ?? 0;

@@ -7,6 +7,7 @@ import photoDetailsService from "../services/photoDetails.services";
 // import photoTagsService from "../services/photoTags.services";
 // import photoCategoriesService from "../services/photoCategories.services";
 import blobService from "../services/blob.services";
+import subjectsService from "../services/subjects.services";
 import { BlobFolder } from "../enums/enum";
 import appUsersServices from "../services/appUsers.services";
 
@@ -26,12 +27,11 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<Buffer> 
 const createPhoto = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const {
-    storedFileName, originalFileName, originalUrl, mimeType, fileSize,
+    storedFileName, originalUrl, mimeType, fileSize,
+    subjectId, slug,
     // categoryId, tags,
     ...metadata
   } = req.body;
-
-  const photoCount = await photoDetailsService.getPhotoCountByUserId(userId);
 
   // const [categoryExists, photoCount, foundTagIds] = await Promise.all([
   //   photoCategoriesService.getCategoryById(categoryId),
@@ -48,11 +48,24 @@ const createPhoto = asyncHandler(async (req: Request, res: Response) => {
   //   throw new ApiError(404, "One or more tags do not exist");
   // }
 
+  if (subjectId) {
+    const subject = await subjectsService.getSubjectById(subjectId);
+
+    if (!subject) {
+      throw new ApiError(404, "Subject not found");
+    } 
+  }
+
+  const slugUnique = await photoDetailsService.isSlugUnique(userId, slug);
+  if (!slugUnique) {
+    throw new ApiError(409, "Slug already in use");
+  }
+
   const photo = await photoDetailsService.createPhoto({
     userId,
     // categoryId,
-    userPhotoNumber: photoCount + 1,
-    originalFileName,
+    slug,
+    subjectId,
     storedFileName,
     originalUrl,
     mimeType,
@@ -88,8 +101,9 @@ const createPhoto = asyncHandler(async (req: Request, res: Response) => {
 const updatePhotoMetadata = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const {
+    subjectId, slug,
     // categoryId, tags,
-    ...metadata
+    ...rest
   } = req.body;
 
   const existing = await photoDetailsService.getPhotoById(id);
@@ -118,9 +132,23 @@ const updatePhotoMetadata = asyncHandler(async (req: Request, res: Response) => 
   //   // }
   // }
 
-  if (Object.keys(metadata).length) {
-    await photoDetailsService.updatePhotoMetadata(id, metadata);
+  if (subjectId) {
+    const subject = await subjectsService.getSubjectById(subjectId);
+
+    if (!subject) {
+      throw new ApiError(404, "Subject not found");
+    }
   }
+
+  if (slug) {
+    const slugUnique = await photoDetailsService.isSlugUnique(existing.userId, slug, id);
+    
+    if (!slugUnique) {
+      throw new ApiError(409, "Slug already in use");
+    }
+  }
+
+  await photoDetailsService.updatePhotoMetadata(id, { subjectId, slug, ...rest });
 
   // await Promise.all([
   //   Object.keys(metadata).length ? photoDetailsService.updatePhotoMetadata(id, metadata) : Promise.resolve(),
@@ -143,8 +171,8 @@ const updatePhotoMetadata = asyncHandler(async (req: Request, res: Response) => 
 const updatePhotoMedia = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user!.id;
-
-  const { originalFileName, storedFileName, originalUrl, mimeType, fileSize } = req.body;
+  
+  const { storedFileName, originalUrl, mimeType, fileSize } = req.body;
 
   const existing = await photoDetailsService.getPhotoById(id);
 
@@ -163,7 +191,6 @@ const updatePhotoMedia = asyncHandler(async (req: Request, res: Response) => {
 
   // Update DB before deleting old blobs — if delete fails, orphaned blobs are cheap, data loss is not
   const updated = await photoDetailsService.updatePhotoImageData(id, {
-    originalFileName,
     storedFileName,
     originalUrl,
     compressedUrl,

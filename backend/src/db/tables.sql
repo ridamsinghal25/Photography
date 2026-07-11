@@ -70,11 +70,9 @@ CREATE TABLE PhotoDetails (
     userId UNIQUEIDENTIFIER NOT NULL,
 
     categoryId UNIQUEIDENTIFIER NOT NULL,
+    subjectId UNIQUEIDENTIFIER NULL,
 
-    userPhotoNumber INT NOT NULL,
-
-    subjectName NVARCHAR(255),
-    subjectInsta NVARCHAR(255),
+    slug NVARCHAR(255) NOT NULL,
 
     cameraBody NVARCHAR(255),
     lens NVARCHAR(255),
@@ -86,12 +84,12 @@ CREATE TABLE PhotoDetails (
     capturedTime TIME,
 
     caption NVARCHAR(MAX),
+    aiGeneratedText NVARCHAR(MAX),
 
     aperture NVARCHAR(30),
     iso NVARCHAR(30),
     shutterSpeed NVARCHAR(30),
 
-    originalFileName NVARCHAR(255) NOT NULL,
     storedFileName NVARCHAR(255) NOT NULL,
 
     originalUrl NVARCHAR(1000) NOT NULL,
@@ -111,8 +109,12 @@ CREATE TABLE PhotoDetails (
         FOREIGN KEY (categoryId)
         REFERENCES Categories(id),
 
-    CONSTRAINT UQ_User_PhotoNumber
-        UNIQUE (userId, userPhotoNumber)
+    CONSTRAINT FK_PhotoDetails_Subject
+        FOREIGN KEY (subjectId)
+        REFERENCES Subjects(id),
+
+    CONSTRAINT UQ_PhotoDetails_User_Slug
+        UNIQUE (userId, slug)
 );
 
 
