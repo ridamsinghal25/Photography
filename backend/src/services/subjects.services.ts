@@ -72,6 +72,26 @@ class SubjectsService {
     return result.recordset[0] ?? null;
   }
 
+  async findByEmail(email: string, excludeId?: string) {
+    const result = await new sql.Request()
+      .input("email", sql.NVarChar(255), email)
+      .input("excludeId", sql.UniqueIdentifier, excludeId ?? null)
+      .query(
+        "SELECT id FROM Subjects WHERE email = @email AND (@excludeId IS NULL OR id != @excludeId)",
+      );
+    return result.recordset[0] ?? null;
+  }
+
+  async findByInstaHandle(instaHandle: string, excludeId?: string) {
+    const result = await new sql.Request()
+      .input("instaHandle", sql.NVarChar(255), instaHandle)
+      .input("excludeId", sql.UniqueIdentifier, excludeId ?? null)
+      .query(
+        "SELECT id FROM Subjects WHERE instaHandle = @instaHandle AND (@excludeId IS NULL OR id != @excludeId)",
+      );
+    return result.recordset[0] ?? null;
+  }
+
   async getAllSubjects() {
     const result = await new sql.Request().query("SELECT * FROM Subjects ORDER BY name");
     return result.recordset;

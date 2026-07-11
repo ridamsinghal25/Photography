@@ -16,6 +16,24 @@ const createSubject = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, extractMessagesFromFlatten(parsed.error));
   }
 
+  if (parsed.data.email) {
+    const dup = await subjectsService.findByEmail(parsed.data.email);
+
+    if (dup) {
+      throw new ApiError(409, "Email already in use");
+    }
+  }
+
+  if (parsed.data.instaHandle) {
+    const dup = await subjectsService.findByInstaHandle(
+      parsed.data.instaHandle,
+    );
+
+    if (dup) {
+      throw new ApiError(409, "Instagram handle already in use");
+    }
+  }
+
   const subject = await subjectsService.createSubject(parsed.data);
 
   return res
@@ -62,6 +80,28 @@ const updateSubject = asyncHandler(async (req: Request, res: Response) => {
 
   if (!existing) {
     return res.status(404).json(new ApiError(404, "Subject not found"));
+  }
+
+  if (parsed.data.email) {
+    const dup = await subjectsService.findByEmail(
+      parsed.data.email,
+      req.params.id,
+    );
+
+    if (dup) {
+      throw new ApiError(409, "Email already in use");
+    }
+  }
+
+  if (parsed.data.instaHandle) {
+    const dup = await subjectsService.findByInstaHandle(
+      parsed.data.instaHandle,
+      req.params.id,
+    );
+
+    if (dup) {
+      throw new ApiError(409, "Instagram handle already in use");
+    }
   }
 
   const updated = await subjectsService.updateSubject(

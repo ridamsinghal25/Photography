@@ -6,16 +6,21 @@ export const subjectCreateSchema = zod.object({
     .trim()
     .min(1, "Name cannot be empty")
     .max(255, "Name must be at most 255 characters long"),
-  instaHandle: zod
-    .string()
-    .trim()
-    .regex(/^@\S+$/, "Instagram handle must start with @ and contain no spaces")
-    .optional(),
-  email: zod
-    .string()
-    .trim()
-    .email("Email must be a valid email address")
-    .optional(),
+  instaHandle: zod.preprocess(
+    (value) => (value === "" ? undefined : value),
+    zod
+      .string()
+      .trim()
+      .regex(
+        /^@\S+$/,
+        "Instagram handle must start with @ and contain no spaces",
+      )
+      .optional(),
+  ),
+  email: zod.preprocess(
+    (v) => (v === "" ? undefined : v),
+    zod.email("Email must be a valid email address").optional(),
+  ),
   phone_number: zod
     .string()
     .trim()
@@ -31,9 +36,10 @@ export const subjectCreateSchema = zod.object({
     .trim()
     .max(255, "Country must be at most 255 characters long")
     .optional(),
-  portfolio_url: zod
-    .url("Portfolio URL must be a valid URL")
-    .optional(),
+  portfolio_url: zod.preprocess(
+    (v) => (v === "" ? undefined : v),
+    zod.url().optional(),
+  ),
 });
 
 export const subjectUpdateSchema = subjectCreateSchema.partial();
