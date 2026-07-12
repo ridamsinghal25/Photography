@@ -4,6 +4,7 @@ import {
   updatePhotoMetadata,
   updatePhotoMedia,
   getPhotoById,
+  getPhotoBySlug,
   getPhotosByUserId,
   deletePhoto,
 } from "../controllers/photoDetails.controllers";
@@ -12,6 +13,7 @@ import { verifyToken } from "../middlewares/auth.middlewares";
 const router = Router();
 
 router.get("/:userId", getPhotosByUserId);
+router.get("/photo/slug/:slug", getPhotoBySlug);
 router.get("/photo/:id", getPhotoById);
 
 router.use(verifyToken);

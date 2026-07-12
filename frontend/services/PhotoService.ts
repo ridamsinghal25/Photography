@@ -13,6 +13,10 @@ class PhotoService {
     return new ApiRequest(`${this.BASE}/photo/${id}`).getRequest<T>();
   }
 
+  async getPhotoBySlug<T>(slug: string): Promise<ApiResponse<T> | ApiError> {
+    return new ApiRequest(`${this.BASE}/photo/slug/${slug}`).getRequest<T>();
+  }
+
   async createPhoto<T>(body: {
     storedFileName: string;
     originalFileName: string;

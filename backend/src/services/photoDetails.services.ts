@@ -181,11 +181,24 @@ class PhotoDetailsService {
       .input("limit", sql.Int, limit).query(`
         SELECT id, compressedUrl, slug, COUNT(*) OVER() AS total
         FROM PhotoDetails WHERE userId = @userId
+        ORDER BY created_at ASC
         OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
       `);
     const total = result.recordset[0]?.total ?? 0;
     const photos = result.recordset.map(({ total: _, ...photo }: any) => photo);
     return { photos, total };
+  }
+
+  async getPhotoBySlug(slug: string) {
+    const result = await new sql.Request()
+      .input("slug", sql.NVarChar(255), slug)
+      .query(`
+        SELECT pd.*, s.name AS subjectName, s.instaHandle AS subjectInsta
+        FROM PhotoDetails pd
+        LEFT JOIN Subjects s ON s.id = pd.subjectId
+        WHERE pd.slug = @slug
+      `);
+    return result.recordset[0] ?? null;
   }
 }
 

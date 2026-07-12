@@ -230,6 +230,22 @@ const getPhotoById = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
+// Slug is unique per user, so we need to find the user first and then get the photo by slug
+// For now, we will assume that the slug is unique across all users and just get the photo by slug
+const getPhotoBySlug = asyncHandler(async (req: Request, res: Response) => {
+  const photo = await photoDetailsService.getPhotoBySlug(req.params.slug);
+
+  if (!photo) {
+    throw new ApiError(404, "Photo not found");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, photo, "Photo retrieved successfully"),
+    );
+});
+
 const getPhotosByUserId = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
@@ -274,4 +290,4 @@ const deletePhoto = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
-export { createPhoto, updatePhotoMetadata, updatePhotoMedia, getPhotoById, getPhotosByUserId, deletePhoto };
+export { createPhoto, updatePhotoMetadata, updatePhotoMedia, getPhotoById, getPhotoBySlug, getPhotosByUserId, deletePhoto };

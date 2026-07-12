@@ -6,8 +6,9 @@ import { LuDownload as Download } from "react-icons/lu";
 import PhotoService from "@/services/PhotoService";
 import { isApiError } from "@/lib/typeGuard";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
-type Photo = { id: string; compressedUrl: string | null; userPhotoNumber: number };
+type Photo = { id: string; compressedUrl: string | null; slug: string };
 
 const COLUMN_COUNT = 4;
 
@@ -15,6 +16,28 @@ function distributePhotos(photos: Photo[]): Photo[][] {
   const columns: Photo[][] = Array.from({ length: COLUMN_COUNT }, () => []);
   photos.forEach((photo, i) => columns[i % COLUMN_COUNT].push(photo));
   return columns;
+}
+
+// Heights cycle per column to mimic varied photo aspect ratios
+const SKELETON_HEIGHTS = [
+  ["h-56", "h-72"],
+  ["h-64", "h-48"],
+  ["h-72", "h-56"],
+  ["h-48", "h-64"],
+];
+
+function GalleryShimmer() {
+  return (
+    <div className="w-full max-w-7xl grid grid-cols-2 gap-4 md:grid-cols-4 items-start">
+      {SKELETON_HEIGHTS.map((heights, col) => (
+        <div key={col} className="flex flex-col gap-4">
+          {heights.map((h, i) => (
+            <Skeleton key={i} className={`w-full rounded-lg ${h}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 type PhotosResponse = {
@@ -33,7 +56,7 @@ export default function ImageGalleryPage({
   const router = useRouter();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState("");
 
@@ -63,46 +86,50 @@ export default function ImageGalleryPage({
     <div className="min-h-screen px-6 py-10 flex flex-col items-center gap-8">
       {error && <p className="text-red-400">{error}</p>}
 
-      <div className="w-full max-w-7xl grid grid-cols-2 gap-4 md:grid-cols-4 items-start">
-        {distributePhotos(photos)
-          .filter((columnPhotos) => columnPhotos.length > 0)
-          .map((columnPhotos, colIndex) => (
-          <div key={colIndex} className="flex flex-col gap-4">
-            {columnPhotos.map((photo) => (
-              <div
-                key={photo.id}
-                onClick={() => router.push(`/photo/${photo.id}`)}
-                className="group relative w-full rounded-lg overflow-hidden cursor-pointer shadow-[1px_2px_40px_8px_rgba(0,0,0,0.4)] transition-shadow duration-300 hover:shadow-[1px_2px_40px_8px_rgba(0,0,0,0.6)]"
-              >
-                <img
-                  src={photo.compressedUrl ?? ""}
-                  alt={`Photo ${photo.userPhotoNumber}`}
-                  loading="lazy"
-                  className="block w-full h-auto"
-                />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/50 backdrop-blur-sm flex flex-col justify-end gap-2 p-4">
-                  <div className="flex w-full items-center justify-between">
-                    <span className="flex items-center gap-2 text-white text-sm font-semibold">
-                      <span className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {photo.userPhotoNumber}
+      {loading && photos.length === 0 ? (
+        <GalleryShimmer />
+      ) : (
+        <div className="w-full max-w-7xl grid grid-cols-2 gap-4 md:grid-cols-4 items-start">
+          {distributePhotos(photos)
+            .filter((columnPhotos) => columnPhotos.length > 0)
+            .map((columnPhotos, colIndex) => (
+            <div key={colIndex} className="flex flex-col gap-4">
+              {columnPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  onClick={() => router.push(`/photos/${photo.slug}`)}
+                  className="group relative w-full rounded-lg overflow-hidden cursor-pointer shadow-[1px_2px_40px_8px_rgba(0,0,0,0.4)] transition-shadow duration-300 hover:shadow-[1px_2px_40px_8px_rgba(0,0,0,0.6)]"
+                >
+                  <img
+                    src={photo.compressedUrl ?? ""}
+                    alt={photo.slug}
+                    loading="lazy"
+                    className="block w-full h-auto"
+                  />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/50 backdrop-blur-sm flex flex-col justify-end gap-2 p-4">
+                    <div className="flex w-full items-center justify-between">
+                      <span className="text-white text-sm font-semibold truncate">
+                        {photo.slug
+                          .split("-")
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ")}
                       </span>
-                      Photo #{photo.userPhotoNumber}
-                    </span>
-                    <a
-                      href={photo.compressedUrl ?? "#"}
-                      download="photo.jpg"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-white hover:text-indigo-300 transition-colors"
-                    >
-                      <Download size={20} />
-                    </a>
+                      <a
+                        href={photo.compressedUrl ?? "#"}
+                        download="photo.jpg"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-white hover:text-indigo-300 transition-colors shrink-0"
+                      >
+                        <Download size={20} />
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {photos.length === 0 && !loading && (
         <p className="text-zinc-400">No photos found.</p>
