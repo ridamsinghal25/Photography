@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Subject } from "@/types/subject";
 import type { Meta, BlobData, PhotoData } from "@/types/photo";
+import { useAppUser } from "@/contexts/UserContext";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ function UploadForm() {
   const searchParams = useSearchParams();
   const photoId = searchParams.get("id");
   const isEditMode = !!photoId;
+  const { user } = useAppUser();
 
   const {
     register,
@@ -329,7 +331,7 @@ function UploadForm() {
       return;
     }
 
-    router.push("/");
+    router.push(`/${user?.id}`);
   };
 
   // Step 1: Image selection (create mode only)
@@ -419,6 +421,19 @@ function UploadForm() {
               className="w-full h-auto"
             />
           </div>
+          {photoBlob?.originalUrl && (
+            <div className="px-4 py-3 border-t border-slate-100 flex items-center gap-2 min-w-0 text-xs">
+              <span className="text-slate-500 font-medium shrink-0">URL</span>
+              <a
+                href={photoBlob.originalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline truncate"
+              >
+                {photoBlob.originalUrl}
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Main Form Card */}
