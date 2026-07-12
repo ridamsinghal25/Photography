@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-900 bg-white placeholder:text-zinc-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
+  "w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-900 bg-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
 
 const LABEL = "flex flex-col gap-1.5 text-sm font-semibold text-zinc-800";
 
@@ -79,7 +79,7 @@ export default function SubjectFormDialog({
           <DialogTitle className="text-xl font-bold text-zinc-950">
             {isEdit ? "Edit Subject" : "New Subject"}
           </DialogTitle>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <p className="text-sm text-zinc-700 mt-0.5">
             {isEdit
               ? "Update the subject's information."
               : "Fill in the details for the new subject."}

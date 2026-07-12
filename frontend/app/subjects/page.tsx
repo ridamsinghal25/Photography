@@ -63,7 +63,7 @@ function SubjectCard({
             size="icon"
             onClick={onEdit}
             title="Edit"
-            className="text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50"
+            className="text-zinc-700 hover:text-indigo-600 hover:bg-indigo-50"
           >
             <Pencil size={15} />
           </Button>
@@ -72,7 +72,7 @@ function SubjectCard({
             size="icon"
             onClick={onDelete}
             title="Delete"
-            className="text-zinc-500 hover:text-red-600 hover:bg-red-50"
+            className="text-zinc-700 hover:text-red-600 hover:bg-red-50"
           >
             <Trash2 size={15} />
           </Button>
@@ -88,19 +88,19 @@ function SubjectCard({
         <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
           {subject.email && (
             <p className="flex items-center gap-2 text-sm text-zinc-700">
-              <Mail size={13} className="shrink-0 text-zinc-400" />
+              <Mail size={13} className="shrink-0 text-zinc-700" />
               {subject.email}
             </p>
           )}
           {subject.phone_number && (
             <p className="flex items-center gap-2 text-sm text-zinc-700">
-              <Phone size={13} className="shrink-0 text-zinc-400" />
+              <Phone size={13} className="shrink-0 text-zinc-700" />
               {subject.phone_number}
             </p>
           )}
           {(subject.city || subject.country) && (
             <p className="flex items-center gap-2 text-sm text-zinc-700">
-              <MapPin size={13} className="shrink-0 text-zinc-400" />
+              <MapPin size={13} className="shrink-0 text-zinc-700" />
               {[subject.city, subject.country].filter(Boolean).join(", ")}
             </p>
           )}
@@ -220,13 +220,13 @@ export default function SubjectsPage() {
         ) : subjects.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-24 text-center">
             <div className="size-16 rounded-2xl bg-zinc-100 flex items-center justify-center">
-              <Users size={28} className="text-zinc-400" />
+              <Users size={28} className="text-zinc-700" />
             </div>
             <div>
               <p className="text-lg font-semibold text-zinc-800">
                 No subjects yet
               </p>
-              <p className="text-sm text-zinc-400 mt-1">
+              <p className="text-sm text-zinc-700 mt-1">
                 Add your first subject to get started.
               </p>
             </div>

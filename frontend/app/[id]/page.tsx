@@ -132,7 +132,7 @@ export default function ImageGalleryPage({
       )}
 
       {photos.length === 0 && !loading && (
-        <p className="text-zinc-400">No photos found.</p>
+        <p className="text-zinc-700">No photos found.</p>
       )}
 
       {hasMore && (
