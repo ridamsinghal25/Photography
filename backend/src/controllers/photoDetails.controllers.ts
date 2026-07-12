@@ -20,6 +20,13 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<Buffer> 
   switch (mimeType) {
     case "image/png": return img.png({ compressionLevel: 8 }).toBuffer();
     case "image/webp": return img.webp({ quality: 75 }).toBuffer();
+    case "image/jpeg": return img.jpeg({ quality: 75 }).toBuffer();
+    case "image/heic": return img.heif({ quality: 75 }).toBuffer();
+    case "image/heif": return img.heif({ quality: 75 }).toBuffer();
+    case "image/avif": return img.avif({ quality: 75 }).toBuffer();
+    case "image/tiff": return img.tiff({ quality: 75 }).toBuffer();
+    case "image/heic-sequence": return img.heif({ quality: 75 }).toBuffer();
+    case "image/heif-sequence": return img.heif({ quality: 75 }).toBuffer();
     default: return img.jpeg({ quality: 75 }).toBuffer();
   }
 }
