@@ -96,7 +96,12 @@ export default function PhotoDetailPage({ params }: { params: Promise<{ slug: st
             >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">{photo.slug}</h1>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {photo.slug
+                .split("-")
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ")}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <a

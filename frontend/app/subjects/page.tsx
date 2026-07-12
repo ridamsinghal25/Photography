@@ -174,7 +174,7 @@ export default function SubjectsPage() {
             <h1 className="text-3xl font-bold text-zinc-950 tracking-tight">
               Subjects
             </h1>
-            <p className="text-base text-zinc-500 mt-1">
+            <p className="text-base text-zinc-700 mt-1">
               Manage the people you photograph.
             </p>
           </div>
@@ -190,8 +190,32 @@ export default function SubjectsPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center gap-2 text-zinc-400 text-sm py-12">
-            <span className="animate-pulse">Loading subjects…</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm flex flex-col gap-4 animate-pulse"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-xl bg-zinc-200 shrink-0" />
+                    <div className="flex flex-col gap-2">
+                      <div className="h-4 w-28 rounded bg-zinc-200" />
+                      <div className="h-3 w-20 rounded bg-zinc-200" />
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <div className="size-8 rounded bg-zinc-200" />
+                    <div className="size-8 rounded bg-zinc-200" />
+                  </div>
+                </div>
+                <div className="border-t border-zinc-100 pt-3 flex flex-col gap-2">
+                  <div className="h-3 w-40 rounded bg-zinc-200" />
+                  <div className="h-3 w-32 rounded bg-zinc-200" />
+                  <div className="h-3 w-36 rounded bg-zinc-200" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : subjects.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-24 text-center">
@@ -215,7 +239,7 @@ export default function SubjectsPage() {
           </div>
         ) : (
           <>
-            <p className="text-sm text-zinc-500 -mt-4">
+            <p className="text-sm text-zinc-700 -mt-4">
               {subjects.length} {subjects.length === 1 ? "subject" : "subjects"}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

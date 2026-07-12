@@ -33,7 +33,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased overscroll-y-none`}
     >
       <body className="min-h-full flex flex-col">
-        <ClerkProvider appearance={{ theme: shadcn }}>
+        <ClerkProvider afterSignOutUrl={"/sign-in"} appearance={{ theme: shadcn }}>
           <ClerkAxiosProvider>
             <HotToaster />
             <Header />
