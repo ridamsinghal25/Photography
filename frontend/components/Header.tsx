@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Show, UserButton, useUser } from "@clerk/nextjs";
+import { Show, UserButton } from "@clerk/nextjs";
+import { useAppUser } from "@/contexts/UserContext";
 import {
   LuUpload as UploadIcon,
   LuUsers as UsersIcon,
@@ -17,7 +18,7 @@ const NAV = [
 
 export function Header() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user } = useAppUser();
 
   const isAuthPage =
     pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname === "/";

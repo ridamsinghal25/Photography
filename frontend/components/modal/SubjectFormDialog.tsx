@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-900 bg-white placeholder:text-zinc-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
+  "w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-900 bg-white placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all";
 
 const LABEL = "flex flex-col gap-1.5 text-sm font-semibold text-zinc-800";
 

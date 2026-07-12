@@ -8,6 +8,7 @@ import webhookRoutes from "./routes/webhook.routes";
 import blobRoutes from "./routes/blob.routes";
 import photoDetailsRoutes from "./routes/photoDetails.routes";
 import subjectsRoutes from "./routes/subjects.routes";
+import appUsersRoutes from "./routes/appUsers.routes";
 import { errorHandler } from "./middlewares/error.middlewares";
 import cookieParser from "cookie-parser";
 
@@ -34,6 +35,7 @@ app.use(cookieParser());
 app.use("/blob", blobRoutes);
 app.use("/photos", photoDetailsRoutes);
 app.use("/subjects", subjectsRoutes);
+app.use("/users", appUsersRoutes);
 
 app.use(errorHandler);
 

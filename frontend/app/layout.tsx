@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { UserProvider } from "@/contexts/UserContext";
 import { ClerkAxiosProvider } from "@/components/ClerkAxiosProvider";
 import { Header } from "@/components/Header";
 import { HotToaster } from "@/components/HotToaster";
@@ -35,9 +36,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ClerkProvider afterSignOutUrl={"/sign-in"} appearance={{ theme: shadcn }}>
           <ClerkAxiosProvider>
-            <HotToaster />
-            <Header />
-            {children}
+            <UserProvider>
+              <HotToaster />
+              <Header />
+              {children}
+            </UserProvider>
           </ClerkAxiosProvider>
         </ClerkProvider>
       </body>
