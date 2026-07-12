@@ -3,340 +3,639 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LuUpload as Upload, LuTrash2 as Trash2, LuSave as Save, LuArrowLeft as ArrowLeft } from "react-icons/lu";
+import {
+  LuUpload as Upload,
+  LuTrash2 as Trash2,
+  LuSave as Save,
+  LuArrowLeft as ArrowLeft,
+  LuImage as ImageIcon,
+  LuCircleAlert as AlertIcon,
+  LuCircleCheck as CheckIcon,
+} from "react-icons/lu";
 import PhotoService from "@/services/PhotoService";
-import BlobService from "@/services/BlobService";
+import SubjectService from "@/services/SubjectService";
 import { isApiError } from "@/lib/typeGuard";
+import { ACCEPTED_MIME_TYPES, ACCEPT_ATTR, MAX_BYTES } from "@/lib/helper";
+import { useUploadBlob } from "@/hooks/use-upload-blob";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Subject } from "@/types/subject";
+import type { Meta, BlobData, PhotoData } from "@/types/photo";
 
-type Meta = {
-  // categoryId: string; tags: string;
-  subjectName: string; subjectInsta: string;
-  cameraBody: string; lens: string; aperture: string; iso: string; shutterSpeed: string;
-  place: string; city: string; capturedDate: string; capturedTime: string;
-  caption: string;
-};
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-type PhotoData = {
-  id: string; // categoryId: string;
-  userPhotoNumber: number;
-  compressedUrl: string | null; originalUrl: string;
-  subjectName: string | null; subjectInsta: string | null;
-  cameraBody: string | null; lens: string | null; aperture: string | null;
-  iso: string | null; shutterSpeed: string | null;
-  place: string | null; city: string | null;
-  capturedDate: string | null; capturedTime: string | null;
-  caption: string | null;
-};
+const inputStyles =
+  "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white " +
+  "focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 " +
+  "transition-all placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500";
 
-const INPUT = "w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors placeholder:text-zinc-400";
+const labelStyles = "text-xs font-semibold text-slate-700";
 
-async function uploadToBlob(file: File) {
-  const res = await BlobService.getUploadSasUrl<{ sasUrl: string; storedFileName: string }>(file.type);
-  if (isApiError(res)) throw new Error(res.errorMessage);
-  const { sasUrl, storedFileName } = res.data!;
-  const put = await fetch(sasUrl, {
-    method: "PUT",
-    headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": file.type },
-    body: file,
-  });
-  if (!put.ok) throw new Error("Storage upload failed");
-  return { storedFileName, originalUrl: sasUrl.split("?")[0], originalFileName: file.name, mimeType: file.type, fileSize: file.size };
-}
+// ─── Image Picker Component ───────────────────────────────────────────────────
 
-function DropZone({ preview, onFile }: { preview: string; onFile: (f: File) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const [over, setOver] = useState(false);
-  const pick = (f: File) => { if (f.type.startsWith("image/")) onFile(f); };
+function ImagePicker({
+  label,
+  fileName,
+  onFile,
+  disabled,
+}: {
+  label: string;
+  fileName: string;
+  onFile: (f: File) => void;
+  disabled?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onFile(file);
+    e.target.value = "";
+  };
+
   return (
-    <div
-      onClick={() => ref.current?.click()}
-      onDragOver={e => { e.preventDefault(); setOver(true); }}
-      onDragLeave={() => setOver(false)}
-      onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) pick(f); }}
-      className={cn(
-        "relative w-full aspect-video rounded-xl border-2 border-dashed cursor-pointer overflow-hidden",
-        "flex flex-col items-center justify-center gap-2 transition-colors",
-        over ? "border-indigo-400 bg-indigo-50"
-          : preview ? "border-transparent"
-          : "border-zinc-300 bg-zinc-50 hover:border-zinc-400",
-      )}
-    >
-      <input ref={ref} type="file" accept="image/*" className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); }} />
-      {preview ? (
-        <>
-          <img src={preview} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-            <span className="text-white text-sm font-medium">Click to change</span>
-          </div>
-        </>
-      ) : (
-        <>
-          <Upload className="w-7 h-7 text-zinc-400" />
-          <p className="text-sm text-zinc-500">Drop image or <span className="text-indigo-600">browse</span></p>
-          <p className="text-xs text-zinc-400">JPEG · PNG · WebP</p>
-        </>
+    <div className="flex items-center gap-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPT_ATTR}
+        className="hidden"
+        disabled={disabled}
+        onChange={handleChange}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        className="gap-2 shrink-0"
+      >
+        <ImageIcon size={16} />
+        {label}
+      </Button>
+      {fileName && (
+        <span className="text-xs text-slate-500 truncate">{fileName}</span>
       )}
     </div>
   );
 }
 
+// ─── Status Message Component ─────────────────────────────────────────────────
+
+function StatusMessage({
+  message,
+  isSuccess,
+}: {
+  message: string;
+  isSuccess: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 px-4 py-3 rounded-lg border",
+        isSuccess
+          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+          : "bg-red-50 border-red-200 text-red-600"
+      )}
+    >
+      {isSuccess ? (
+        <CheckIcon size={16} className="shrink-0" />
+      ) : (
+        <AlertIcon size={16} className="shrink-0" />
+      )}
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+// ─── Upload Form Component ────────────────────────────────────────────────────
+
 function UploadForm() {
   const router = useRouter();
-  const id = useSearchParams().get("id");
-  const isEdit = !!id;
+  const searchParams = useSearchParams();
+  const photoId = searchParams.get("id");
+  const isEditMode = !!photoId;
 
-  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<Meta>();
-  const [photoNum, setPhotoNum] = useState<number | null>(null);
-  const [preview, setPreview] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [replacing, setReplacing] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<Meta>();
 
+  const [photoBlob, setPhotoBlob] = useState<BlobData | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+  const [subjectList, setSubjectList] = useState<Subject[]>([]);
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  const [replacementPreviewUrl, setReplacementPreviewUrl] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [notification, setNotification] = useState<{
+    text: string;
+    ok: boolean;
+  } | null>(null);
+
+  const { upload: uploadImage, uploading: isUploading } = useUploadBlob();
+  const { upload: uploadReplacement, uploading: isReplacingImage } =
+    useUploadBlob();
+
+  const isProcessing =
+    isSubmitting || isDeleting || isReplacingImage || isUploading;
+
+  // Load subjects on mount
   useEffect(() => {
-    if (!id) return;
-    PhotoService.getPhotoById<PhotoData>(id).then(res => {
-      if (isApiError(res)) { setMsg({ text: res.errorMessage, ok: false }); return; }
-      const p = res.data!;
-      setPhotoNum(p.userPhotoNumber);
-      setPreview(p.compressedUrl ?? p.originalUrl);
+    SubjectService.getSubjects<Subject[]>().then((response) => {
+      if (!isApiError(response)) {
+        setSubjectList(response.data!);
+      }
+    });
+  }, []);
+
+  // Load existing photo in edit mode
+  useEffect(() => {
+    if (!photoId) return;
+
+    PhotoService.getPhotoById<PhotoData>(photoId).then((response) => {
+      if (isApiError(response)) {
+        setNotification({ text: response.errorMessage, ok: false });
+        return;
+      }
+
+      const photoData = response.data!;
+      const previewUrl = photoData.compressedUrl ?? photoData.originalUrl;
+      setPhotoPreviewUrl(previewUrl);
+      setPhotoBlob({
+        storedFileName: "",
+        originalUrl: photoData.originalUrl,
+        originalFileName: "",
+        mimeType: "",
+        fileSize: 0,
+      });
+
       reset({
-        // categoryId: p.categoryId ?? "",
-        // tags: "",
-        subjectName: p.subjectName ?? "",
-        subjectInsta: p.subjectInsta ?? "",
-        cameraBody: p.cameraBody ?? "",
-        lens: p.lens ?? "",
-        aperture: p.aperture ?? "",
-        iso: p.iso ?? "",
-        shutterSpeed: p.shutterSpeed ?? "",
-        place: p.place ?? "",
-        city: p.city ?? "",
-        capturedDate: p.capturedDate ? p.capturedDate.split("T")[0] : "",
-        capturedTime: p.capturedTime ? p.capturedTime.substring(0, 5) : "",
-        caption: p.caption ?? "",
+        slug: photoData.slug,
+        subjectId: photoData.subjectId ?? "",
+        cameraBody: photoData.cameraBody ?? "",
+        lens: photoData.lens ?? "",
+        aperture: photoData.aperture ?? "",
+        iso: photoData.iso ?? "",
+        shutterSpeed: photoData.shutterSpeed ?? "",
+        place: photoData.place ?? "",
+        city: photoData.city ?? "",
+        capturedDate: photoData.capturedDate
+          ? photoData.capturedDate.split("T")[0]
+          : "",
+        capturedTime: photoData.capturedTime
+          ? photoData.capturedTime.substring(0, 5)
+          : "",
+        caption: photoData.caption ?? "",
       });
     });
-  }, [id, reset]);
+  }, [photoId, reset]);
 
-  const toBody = (d: Meta) => d;
-  // const toBody = (d: Meta) => ({ ...d, tags: d.tags.split(",").map(t => t.trim()).filter(Boolean) });
+  const validateImageFile = (file: File): string | null => {
+    if (!ACCEPTED_MIME_TYPES.has(file.type)) {
+      return `Unsupported format: ${file.type}`;
+    }
+    if (file.size > MAX_BYTES) {
+      return "File size must be under 10 MB.";
+    }
+    return null;
+  };
 
-  const onSubmit = handleSubmit(async (data) => {
-    setMsg(null);
+  // Handle primary image upload
+  const handleImageUpload = async (file: File) => {
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setNotification({ text: validationError, ok: false });
+      return;
+    }
+
+    setNotification(null);
+
     try {
-      if (isEdit) {
-        const res = await PhotoService.updatePhotoMetadata(id!, toBody(data));
-        if (isApiError(res)) throw new Error(res.errorMessage);
-        setMsg({ text: "Metadata saved.", ok: true });
+      const uploadedBlob = await uploadImage(file);
+      setPhotoBlob(uploadedBlob);
+      setPhotoPreviewUrl(URL.createObjectURL(file));
+    } catch (error: any) {
+      setNotification({ text: error.message, ok: false });
+    }
+  };
+
+  // Handle replacement image selection
+  const handleReplacementImageSelect = (file: File) => {
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setNotification({ text: validationError, ok: false });
+      return;
+    }
+    setReplacementFile(file);
+    setReplacementPreviewUrl(URL.createObjectURL(file));
+  };
+
+  // Submit form
+  const onFormSubmit = handleSubmit(async (formData) => {
+    setNotification(null);
+
+    try {
+      if (isEditMode) {
+        const updateResponse = await PhotoService.updatePhotoMetadata(
+          photoId!,
+          formData
+        );
+
+        if (isApiError(updateResponse)) {
+          throw new Error(updateResponse.errorMessage);
+        }
+
+        setNotification({ text: "Metadata saved successfully.", ok: true });
       } else {
-        if (!file) { setMsg({ text: "Select an image first.", ok: false }); return; }
-        const blob = await uploadToBlob(file);
-        const res = await PhotoService.createPhoto<PhotoData>({ ...blob, ...toBody(data) });
-        if (isApiError(res)) throw new Error(res.errorMessage);
-        router.push(`/upload?id=${res.data!.id}`);
+        const createResponse = await PhotoService.createPhoto<PhotoData>({
+          ...photoBlob!,
+          ...formData,
+        });
+
+        if (isApiError(createResponse)) {
+          throw new Error(createResponse.errorMessage);
+        }
+
+        router.push(`/upload?id=${createResponse.data!.id}`);
       }
-    } catch (e: any) {
-      setMsg({ text: e.message, ok: false });
+    } catch (error: any) {
+      setNotification({ text: error.message, ok: false });
     }
   });
 
-  const handleReplaceMedia = async () => {
-    if (!mediaFile) return;
-    setMsg(null);
-    setReplacing(true);
+  // Handle image replacement
+  const handleImageReplacement = async () => {
+    if (!replacementFile) return;
+
+    setNotification(null);
+
     try {
-      const blob = await uploadToBlob(mediaFile);
-      const res = await PhotoService.updatePhotoMedia(id!, blob);
-      if (isApiError(res)) throw new Error(res.errorMessage);
-      setPreview(mediaPreview);
-      setMediaFile(null);
-      setMediaPreview("");
-      setMsg({ text: "Image replaced.", ok: true });
-    } catch (e: any) {
-      setMsg({ text: e.message, ok: false });
-    } finally {
-      setReplacing(false);
+      const uploadedBlob = await uploadReplacement(replacementFile);
+      const updateResponse = await PhotoService.updatePhotoMedia(
+        photoId!,
+        uploadedBlob
+      );
+
+      if (isApiError(updateResponse)) {
+        throw new Error(updateResponse.errorMessage);
+      }
+
+      setPhotoPreviewUrl(replacementPreviewUrl);
+      setPhotoBlob((prev) => ({
+        ...prev!,
+        originalUrl: uploadedBlob.originalUrl,
+      }));
+      setReplacementFile(null);
+      setReplacementPreviewUrl("");
+      setNotification({ text: "Image replaced successfully.", ok: true });
+    } catch (error: any) {
+      setNotification({ text: error.message, ok: false });
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this photo? This cannot be undone.")) return;
-    setDeleting(true);
-    const res = await PhotoService.deletePhoto(id!);
-    if (isApiError(res)) { setMsg({ text: res.errorMessage, ok: false }); setDeleting(false); return; }
+  // Handle photo deletion
+  const handlePhotoDelete = async () => {
+    if (
+      !window.confirm(
+        "Are you sure? This action cannot be undone."
+      )
+    )
+      return;
+
+    setIsDeleting(true);
+
+    const deleteResponse = await PhotoService.deletePhoto(photoId!);
+
+    if (isApiError(deleteResponse)) {
+      setNotification({ text: deleteResponse.errorMessage, ok: false });
+      setIsDeleting(false);
+      return;
+    }
+
     router.push("/");
   };
 
-  const busy = isSubmitting || deleting || replacing;
-
-  return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-10">
-      <form onSubmit={onSubmit} className="max-w-7xl mx-auto flex flex-col gap-6">
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-baseline gap-3">
-            <button type="button" onClick={() => router.back()}
-              className="text-zinc-400 hover:text-zinc-700 transition-colors p-1 -ml-1 rounded-lg hover:bg-zinc-100">
+  // Step 1: Image selection (create mode only)
+  if (!isEditMode && !photoBlob) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-lg p-8 flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 -ml-1 rounded-lg hover:bg-slate-100"
+              aria-label="Go back"
+            >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-xl font-semibold text-zinc-900">
-              {isEdit ? "Edit Photo" : "Upload Photo"}
-            </h1>
-            {photoNum && <span className="text-zinc-400 text-sm">#{photoNum}</span>}
+            <h1 className="text-2xl font-bold text-slate-900">Upload Photo</h1>
           </div>
-          {isEdit && (
-            <Button type="button" variant="destructive" size="sm" disabled={busy} onClick={handleDelete} className="gap-1.5">
-              <Trash2 size={14} />{deleting ? "Deleting…" : "Delete"}
+
+          {notification && (
+            <StatusMessage
+              message={notification.text}
+              isSuccess={notification.ok}
+            />
+          )}
+
+          <ImagePicker
+            label={isUploading ? "Uploading…" : "Choose Image"}
+            fileName=""
+            onFile={handleImageUpload}
+            disabled={isUploading}
+          />
+
+          <p className="text-xs text-slate-500 text-center">
+            Supported: JPEG, PNG, WebP, TIFF, AVIF, HEIC, HEIF
+            <br />
+            Max size: 10 MB
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Metadata form
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-8">
+      <form onSubmit={onFormSubmit} className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1 -ml-1 rounded-lg hover:bg-slate-100"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {isEditMode ? "Edit Photo" : "Upload Photo"}
+            </h1>
+          </div>
+
+          {isEditMode && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isProcessing}
+              onClick={handlePhotoDelete}
+              className="gap-2"
+            >
+              <Trash2 size={16} />
+              {isDeleting ? "Deleting…" : "Delete"}
             </Button>
           )}
         </div>
 
-        {/* Message banner */}
-        {msg && (
-          <p className={cn("text-sm px-4 py-3 rounded-xl border", msg.ok
-            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-            : "bg-red-50 border-red-200 text-red-600")}>
-            {msg.text}
-          </p>
-        )}
-
-        {/* Image area */}
-        {isEdit && preview && (
-          <div className="rounded-2xl overflow-hidden aspect-video bg-zinc-100 shadow-sm">
-            <img src={preview} alt="Current photo" className="w-full h-full object-cover" />
-          </div>
-        )}
-        {!isEdit && (
-          <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm flex flex-col gap-3">
-            <p className="text-sm font-medium text-zinc-700">Image</p>
-            <DropZone preview={preview} onFile={f => { setFile(f); setPreview(URL.createObjectURL(f)); }} />
+        {notification && (
+          <div className="mb-6">
+            <StatusMessage
+              message={notification.text}
+              isSuccess={notification.ok}
+            />
           </div>
         )}
 
-        {/* Metadata card */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm flex flex-col gap-6">
-          {isEdit && <p className="text-sm font-medium text-zinc-700">Metadata</p>}
-
-          {/* Classification (FOR FUTURE USE) */}
-          {/* <div className="flex flex-col gap-3">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Classification</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Category ID *
-                <input {...register("categoryId", { required: "Required" })} className={INPUT} placeholder="UUID" />
-                {errors.categoryId && <span className="text-red-500 text-xs">{errors.categoryId.message}</span>}
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Tags <span className="font-normal text-zinc-400">(comma-separated UUIDs)</span>
-                <input {...register("tags")} className={INPUT} placeholder="uuid1, uuid2" />
-              </label>
-            </div>
-          </div> */}
-
-          {/* Subject */}
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Subject</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Name
-                <input {...register("subjectName")} className={INPUT} />
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Instagram
-                <input {...register("subjectInsta")} className={INPUT} placeholder="@handle" />
-              </label>
-            </div>
+        {/* Image Preview */}
+        <div className="mb-6 rounded-xl overflow-hidden bg-white border border-slate-200 shadow-lg">
+          <div className="overflow-auto max-h-96 bg-slate-50 flex items-center justify-center">
+            <img
+              src={photoPreviewUrl}
+              alt="Preview"
+              className="w-full h-auto"
+            />
           </div>
+        </div>
 
-          {/* Camera */}
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Camera</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Body<input {...register("cameraBody")} className={INPUT} />
+        {/* Main Form Card */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6 mb-6">
+          {/* Basic Info */}
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Basic Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Slug *</span>
+                <input
+                  {...register("slug", { required: "Slug is required" })}
+                  className={inputStyles}
+                  placeholder="my-photo-slug"
+                />
+                {errors.slug && (
+                  <span className="text-xs text-red-600">
+                    {errors.slug.message}
+                  </span>
+                )}
               </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Lens<input {...register("lens")} className={INPUT} />
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Aperture<input {...register("aperture")} className={INPUT} placeholder="f/1.8" />
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                ISO<input {...register("iso")} className={INPUT} placeholder="400" />
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Shutter<input {...register("shutterSpeed")} className={INPUT} placeholder="1/250" />
+
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Subject *</span>
+                <select
+                  {...register("subjectId", {
+                    required: "Subject is required",
+                  })}
+                  className={inputStyles}
+                >
+                  <option value="">— Select Subject —</option>
+                  {subjectList.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                      {subject.instaHandle ? ` (${subject.instaHandle})` : ""}
+                    </option>
+                  ))}
+                </select>
+                {errors.subjectId && (
+                  <span className="text-xs text-red-600">
+                    {errors.subjectId.message}
+                  </span>
+                )}
               </label>
             </div>
           </div>
 
-          {/* Location */}
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Location & Time</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Place<input {...register("place")} className={INPUT} />
+          {/* Camera Settings */}
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Camera Settings
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Body</span>
+                <input
+                  {...register("cameraBody")}
+                  className={inputStyles}
+                  placeholder="e.g. Canon 5D"
+                />
               </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                City<input {...register("city")} className={INPUT} />
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Lens</span>
+                <input
+                  {...register("lens")}
+                  className={inputStyles}
+                  placeholder="e.g. 50mm"
+                />
               </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Date<input type="date" {...register("capturedDate")} className={INPUT} />
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Aperture</span>
+                <input
+                  {...register("aperture")}
+                  className={inputStyles}
+                  placeholder="f/1.8"
+                />
               </label>
-              <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                Time<input type="time" {...register("capturedTime")} className={INPUT} />
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>ISO</span>
+                <input
+                  {...register("iso")}
+                  className={inputStyles}
+                  placeholder="400"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Shutter</span>
+                <input
+                  {...register("shutterSpeed")}
+                  className={inputStyles}
+                  placeholder="1/250"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Location & Time */}
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Location & Timestamp
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Place</span>
+                <input
+                  {...register("place")}
+                  className={inputStyles}
+                  placeholder="Location name"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>City</span>
+                <input
+                  {...register("city")}
+                  className={inputStyles}
+                  placeholder="City"
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Date</span>
+                <input
+                  type="date"
+                  {...register("capturedDate")}
+                  className={inputStyles}
+                />
+              </label>
+              <label className="flex flex-col gap-2">
+                <span className={labelStyles}>Time</span>
+                <input
+                  type="time"
+                  {...register("capturedTime")}
+                  className={inputStyles}
+                />
               </label>
             </div>
           </div>
 
           {/* Caption */}
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 pb-2">Caption</p>
-            <textarea {...register("caption")} rows={3}
-              className={`${INPUT} resize-none`}
-              placeholder="Write something about this photo…" />
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Caption
+            </h2>
+            <textarea
+              {...register("caption")}
+              rows={4}
+              className={cn(inputStyles, "resize-none")}
+              placeholder="Share the story behind this photo…"
+            />
           </div>
 
-          <div className="flex justify-end pt-2 border-t border-zinc-100">
-            <Button type="submit" disabled={busy} className="gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white border-0">
-              {isEdit
-                ? <>
-                  <Save className="w-4 h-4" />{isSubmitting ? "Saving…" : "Save Metadata"}
+          {/* Submit Button */}
+          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 mt-6">
+            <Button
+              type="submit"
+              disabled={isProcessing}
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white border-0"
+            >
+              {isEditMode ? (
+                <>
+                  <Save size={16} />
+                  {isSubmitting ? "Saving…" : "Save Changes"}
                 </>
-                : <>
-                  <Upload className="w-4 h-4" />{isSubmitting ? "Uploading…" : "Upload Photo"}
-                </>}
+              ) : (
+                <>
+                  <Upload size={16} />
+                  {isSubmitting ? "Creating…" : "Create Photo"}
+                </>
+              )}
             </Button>
           </div>
         </div>
 
-        {/* Replace image (edit only) */}
-        {isEdit && (
-          <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-            <p className="text-sm font-medium text-zinc-700">Replace Image</p>
-            <DropZone preview={mediaPreview} onFile={f => { setMediaFile(f); setMediaPreview(URL.createObjectURL(f)); }} />
-            {mediaFile && (
-              <div className="flex justify-end">
-                <Button type="button" disabled={busy} onClick={handleReplaceMedia} className="gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white border-0">
-                  <Upload size={14} />{replacing ? "Uploading…" : "Replace Image"}
+        {/* Replace Image Section (Edit Mode Only) */}
+        {isEditMode && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-6">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Replace Image
+            </h2>
+
+            <ImagePicker
+              label="Choose New Image"
+              fileName={replacementFile?.name ?? ""}
+              onFile={handleReplacementImageSelect}
+              disabled={isProcessing}
+            />
+
+            {replacementPreviewUrl && (
+              <div className="mt-4 rounded-lg overflow-hidden bg-slate-50 border border-slate-200">
+                <img
+                  src={replacementPreviewUrl}
+                  alt="Replacement preview"
+                  className="w-full h-auto max-h-64 object-cover"
+                />
+              </div>
+            )}
+
+            {replacementFile && (
+              <div className="flex justify-end gap-3 mt-4">
+                <Button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={handleImageReplacement}
+                  className="gap-2 bg-blue-600 hover:bg-blue-700 text-white border-0"
+                >
+                  <Upload size={16} />
+                  {isReplacingImage ? "Uploading…" : "Replace Image"}
                 </Button>
               </div>
             )}
           </div>
         )}
-
       </form>
     </div>
   );
 }
 
+// ─── Page Component ───────────────────────────────────────────────────────────
+
 export default function UploadPage() {
-  return <Suspense><UploadForm /></Suspense>;
+  return (
+    <Suspense>
+      <UploadForm />
+    </Suspense>
+  );
 }
